@@ -5,10 +5,11 @@ import torch.nn as nn
 from tensordict import TensorDict
 from torch_geometric.data import Batch
 
-from deepaco_plus.aco import AntSystem
 from rl4co.envs import RL4COEnvBase, get_env
 from rl4co.models.zoo.common.nonautoregressive.decoder import NonAutoregressiveDecoder
 from rl4co.utils.utils import merge_with_defaults
+
+from ..aco import AntSystem
 
 
 class DeepACOPlusDecoder(NonAutoregressiveDecoder):
@@ -60,18 +61,6 @@ class DeepACOPlusDecoder(NonAutoregressiveDecoder):
         phase: str = "train",
         **unused_kwargs,
     ):
-        if phase == "train":
-            # use the procedure inherited from NonAutoregressiveDecoder for training
-            return super().forward(
-                td_initial,
-                graph,
-                env,
-                decode_type="multistart_sampling",
-                calc_reward=calc_reward,
-                phase=phase,
-                num_starts=self.n_ants[phase],
-            )
-
         # Instantiate environment if needed
         if env is None or isinstance(env, str):
             env_name = self.env_name if env is None else env
@@ -80,10 +69,23 @@ class DeepACOPlusDecoder(NonAutoregressiveDecoder):
         # calculate heatmap
         heuristic_logp = self.heatmap_generator(graph)
 
-        aco = self.aco_class(heuristic_logp, n_ants=self.n_ants[phase], **self.aco_args)
+        aco = self.aco_class(
+            heuristic_logp,
+            n_ants=self.n_ants[phase],
+            require_logp=phase == "train",
+            **self.aco_args,
+        )
         td, actions, reward = aco.run(td_initial, env, self.n_iterations[phase])
 
-        if calc_reward:
-            td.set("reward", reward)
+        logp = masks = None
 
-        return None, actions, td
+        if phase == "train":
+            logp, actions, reward, masks = aco.get_logp()
+            logp[logp < -1000] = 0
+            logp = logp.flatten(0, 1)
+            actions = actions.flatten(0, 1)
+            reward = reward.flatten(0, 1)
+
+        td_out = dict(reward=reward, masks=masks, heatmap=heuristic_logp)
+
+        return logp, actions, td_out

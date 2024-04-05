@@ -35,11 +35,11 @@ model:
 
   policy_kwargs:
     n_ants:
-      train: 100
+      train: 20
       val: 20
       test: 20
     n_iterations:
-      train: 1 # unused value
+      train: 5
       val: 30
       test: 100
     alpha: 1.0
