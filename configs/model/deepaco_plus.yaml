@@ -1,3 +1,10 @@
 _target_: deepaco_plus.DeepACOPlus
 
 baseline: "exponential"
+
+
+metrics:
+  train: ["loss", "loss_u", "loss_rw", "reward"]
+  val: ["reward"]
+  test: ["reward"]
+  log_on_step: True
