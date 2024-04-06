@@ -74,6 +74,7 @@ class EdgeHeatmapGenerator(nn.Module):
             device=device,
             dtype=graphs[0].edge_attr.dtype,
         )
+        heatmaps_logp[:, :, :] = -10
 
         for index, graph in enumerate(graphs):
             edge_index, edge_attr = graph.edge_index, graph.edge_attr
